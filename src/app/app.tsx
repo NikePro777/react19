@@ -1,3 +1,12 @@
+import { Route, Routes } from 'react-router-dom';
+import { UsersPage } from '../pages/users';
+import { ToDoListPage } from '../pages/todo-list';
+
 export function App() {
-  return <h1 className="text-3xl font-bold underline"> Hello </h1>;
+  return (
+    <Routes>
+      <Route path="/" element={<UsersPage />}></Route>
+      <Route path="/:userId/tasks" element={<ToDoListPage />}></Route>
+    </Routes>
+  );
 }
