@@ -1,4 +1,9 @@
 {
   "tasks": [],
-  "users": []
+  "users": [
+    {
+      "id": "a3f3e724-695c-4ce5-8d75-f5785896ba70",
+      "email": "dsfs@defsdsf"
+    }
+  ]
 }
