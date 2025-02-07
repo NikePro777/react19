@@ -1,4 +1,4 @@
-import { createUser } from '../../shared/api';
+import { createUser, deleteUser } from '../../shared/api';
 
 type CreateActionState = {
   error?: string;
@@ -27,3 +27,21 @@ export const createUserAction =
       };
     }
   };
+
+type DeleteUserActionState = {
+  error?: string;
+};
+
+export function deleteUserAction({ id, refetchUsers }: { refetchUsers: () => void; id: string }) {
+  return async (): Promise<DeleteUserActionState> => {
+    try {
+      await deleteUser(id);
+      refetchUsers();
+      return {};
+    } catch {
+      return {
+        error: 'Error while deleting user',
+      };
+    }
+  };
+}
