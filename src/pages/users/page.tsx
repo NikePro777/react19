@@ -1,6 +1,6 @@
 import { Suspense, use, useActionState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { createUserAction, deleteUserAction } from './actions';
+import { createUserAction, DeleteUserAction, deleteUserAction } from './actions';
 import { useUsers } from './use-users';
 
 type User = {
@@ -57,7 +57,7 @@ export function UsersList({
   refetchUsers,
 }: {
   usersPromise: Promise<User[]>;
-  refetchUsers: () => void;
+  action: DeleteUserAction;
 }) {
   const users = use(usersPromise);
   return (
@@ -69,15 +69,20 @@ export function UsersList({
   );
 }
 
-export function UserCart({ user, refetchUsers }: { user: User; refetchUsers: () => void }) {
-  const [state, handleDelete, isPending] = useActionState(
-    deleteUserAction({ id: user.id, refetchUsers }),
-    {},
-  );
+export function UserCart({
+  user,
+  deleteUserAction,
+}: {
+  user: User;
+  deleteUserAction: DeleteUserAction;
+}) {
+  const [state, handleDelete, isPending] = useActionState(deleteUserAction, {});
   return (
     <div className="border p-2 m-2 rounded bg-gray-100 flex gap-2">
       {user.email}
       <form action={handleDelete} className="ml-auto">
+        <input type="hidden" name="id" value={user.id} /> // нам в нашу форму как то id нужно
+        передать.... вот так
         <button
           className="bg-red-500 hover:bd-red-700 text-white font-bold py-2 px-4 rounded ml-auto disabled:bg-gray-400 cursor-pointer"
           disabled={isPending}>
