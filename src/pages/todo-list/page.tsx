@@ -15,13 +15,19 @@ import { useUsersGlobal } from '../../app/entities/user';
 
 export function TodoListPage() {
   const { userId = '' } = useParams();
+  const [page, setPage] = useState(1);
 
   const [paginatedTasksPromise, setTaskPromise] = useState(() =>
     fetchTasks({ filters: { userId } }),
   );
 
   const refetchTasks = () =>
-    startTransition(() => setTaskPromise(fetchTasks({ filters: { userId } })));
+    startTransition(() => setTaskPromise(fetchTasks({ filters: { userId }, page })));
+
+  const onPageChange = (newPage: number) => {
+    setPage(newPage);
+    setTaskPromise(fetchTasks({ filters: { userId }, page: newPage }));
+  };
 
   const tasksPromise = useMemo(
     () => paginatedTasksPromise.then((r) => r.data),
@@ -41,8 +47,8 @@ export function TodoListPage() {
           <TasksList tasksPromise={tasksPromise} refetchTasks={refetchTasks} />
           <Pagination
             tasksPaginated={paginatedTasksPromise}
-            // page={paginatedTasksPromise.then((r)=> r.page)
-            page={1}
+            page={page}
+            onPageChange={onPageChange}
           />
         </Suspense>
       </ErrorBoundary>
@@ -70,8 +76,9 @@ function Pagination({
   const handlePageChange = (page: number) => () => {
     startTransition(() => onPageChange?.(page));
   };
+
   return (
-    <nav className={`${isLoading ? 'opacity-50' : ''}"flex items-center justify-between"`}>
+    <nav className={`${isLoading ? 'opacity-50' : ''} flex items-center justify-between`}>
       <div className="grid grid-cols-4 gap-2">
         <button
           disabled={isLoading}
