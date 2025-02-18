@@ -15,17 +15,18 @@ import { useUsersGlobal } from '../../app/entities/user';
 
 export function TodoListPage() {
   const { userId = '' } = useParams();
-  const [page, setPage] = useState(1);
 
   const [paginatedTasksPromise, setTaskPromise] = useState(() =>
     fetchTasks({ filters: { userId } }),
   );
 
   const refetchTasks = () =>
-    startTransition(() => setTaskPromise(fetchTasks({ filters: { userId }, page })));
+    startTransition(async () => {
+      const { page } = await paginatedTasksPromise;
+      setTaskPromise(fetchTasks({ filters: { userId }, page }));
+    });
 
   const onPageChange = (newPage: number) => {
-    setPage(newPage);
     setTaskPromise(fetchTasks({ filters: { userId }, page: newPage }));
   };
 
@@ -45,11 +46,7 @@ export function TodoListPage() {
         )}>
         <Suspense fallback={<div>Loading....</div>}>
           <TasksList tasksPromise={tasksPromise} refetchTasks={refetchTasks} />
-          <Pagination
-            tasksPaginated={paginatedTasksPromise}
-            page={page}
-            onPageChange={onPageChange}
-          />
+          <Pagination tasksPaginated={paginatedTasksPromise} onPageChange={onPageChange} />
         </Suspense>
       </ErrorBoundary>
     </main>
@@ -62,17 +59,15 @@ function UserPreview({ userId }: { userId: string }) {
   return <span>{users.find((u) => u.id === userId)?.email}</span>;
 }
 
-function Pagination({
-  page,
+function Pagination<T>({
   tasksPaginated,
   onPageChange,
 }: {
-  page: number;
-  tasksPaginated: Promise<PaginatedResponse<Task>>;
+  tasksPaginated: Promise<PaginatedResponse<T>>;
   onPageChange?: (page: number) => void;
 }) {
   const [isLoading, startTransition] = useTransition();
-  const { last, first, next, prev, pages } = use(tasksPaginated);
+  const { last, page, first, next, prev, pages } = use(tasksPaginated);
   const handlePageChange = (page: number) => () => {
     startTransition(() => onPageChange?.(page));
   };
