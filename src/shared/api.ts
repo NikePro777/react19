@@ -39,9 +39,9 @@ export type PaginatedResponse<T> = {
   first: number;
   items: number;
   last: number;
-  next: string | null;
+  next: number | null;
   pages: number;
-  prev: string | null;
+  prev: number | null;
 };
 
 export function fetchTasks({
