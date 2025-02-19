@@ -18,8 +18,17 @@ export function TodoListPage() {
   const { userId = '' } = useParams();
   const [search, setSearch] = useState('');
 
-  const getTasks = async ({ page = 1, title = search }: { page?: number; title?: string }) =>
-    fetchTasks({ filters: { userId, title }, page });
+  const [createdAtSort, setCreatedAtSort] = useState<'asc' | 'desc'>('asc');
+
+  const getTasks = async ({
+    page = 1,
+    title = search,
+    createdAtSortNew = createdAtSort,
+  }: {
+    page?: number;
+    title?: string;
+    createdAtSortNew?: 'asc' | 'desc';
+  }) => fetchTasks({ filters: { userId, title }, page, sort: { createdAt: createdAtSortNew } });
 
   const [paginatedTasksPromise, setTaskPromise] = useState(() => getTasks({}));
 
@@ -52,6 +61,13 @@ export function TodoListPage() {
     }, 1000);
   };
 
+  const handleChangeSort = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCreatedAtSort(e.target.value as 'asc' | 'desc');
+    startTransition(() => {
+      setTaskPromise(getTasks({ createdAtSortNew: e.target.value as 'asc' }));
+    });
+  };
+
   return (
     <main className="container mx-auto p-4 pt-10 flex flex-col gap-4">
       <h1 className="text-3xl font-bold underline">Tasks:</h1>
@@ -65,10 +81,10 @@ export function TodoListPage() {
           value={search}
           onChange={handleChangeSearch}
         />
-        {/* <select className="border p-2 rounded">
-          <option value="completed">New to Old</option>
-          <option value="incomplete">Old to New</option>
-        </select> */}
+        <select className="border p-2 rounded" value={createdAtSort} onChange={handleChangeSort}>
+          <option value="asc">Asc</option>
+          <option value="desc">Desc</option>
+        </select>
       </div>
 
       <ErrorBoundary
