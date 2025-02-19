@@ -4,6 +4,7 @@ import {
   use,
   useActionState,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from 'react';
@@ -15,19 +16,20 @@ import { useUsersGlobal } from '../../app/entities/user';
 
 export function TodoListPage() {
   const { userId = '' } = useParams();
+  const [search, setSearch] = useState('');
 
-  const [paginatedTasksPromise, setTaskPromise] = useState(() =>
-    fetchTasks({ filters: { userId } }),
-  );
+  const getTasks = async ({ page = 1, title = search }: { page?: number; title?: string }) =>
+    fetchTasks({ filters: { userId, title }, page });
 
-  const refetchTasks = () =>
-    startTransition(async () => {
-      const { page } = await paginatedTasksPromise;
-      setTaskPromise(fetchTasks({ filters: { userId }, page }));
-    });
+  const [paginatedTasksPromise, setTaskPromise] = useState(() => getTasks({}));
+
+  const refetchTasks = async () => async () => {
+    const { page } = await paginatedTasksPromise;
+    startTransition(() => setTaskPromise(getTasks({ page })));
+  };
 
   const onPageChange = (newPage: number) => {
-    setTaskPromise(fetchTasks({ filters: { userId }, page: newPage }));
+    setTaskPromise(getTasks({ page: newPage }));
   };
 
   const tasksPromise = useMemo(
@@ -35,11 +37,40 @@ export function TodoListPage() {
     [paginatedTasksPromise],
   );
 
+  const intervalRef = useRef(0);
+
+  const handleChangeSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+
+    if (intervalRef.current) {
+      clearTimeout(intervalRef.current);
+    }
+    intervalRef.current = setTimeout(() => {
+      startTransition(() => {
+        setTaskPromise(getTasks({ title: e.target.value }));
+      });
+    }, 1000);
+  };
+
   return (
     <main className="container mx-auto p-4 pt-10 flex flex-col gap-4">
       <h1 className="text-3xl font-bold underline">Tasks:</h1>
 
       <CreateTaskForm refetchTasks={refetchTasks} userId={userId} />
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Search"
+          className="border p-2 rounded"
+          value={search}
+          onChange={handleChangeSearch}
+        />
+        {/* <select className="border p-2 rounded">
+          <option value="completed">New to Old</option>
+          <option value="incomplete">Old to New</option>
+        </select> */}
+      </div>
+
       <ErrorBoundary
         fallbackRender={(e) => (
           <div className="text-red-500">Something went wrong: {JSON.stringify(e)}</div>
