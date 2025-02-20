@@ -14,11 +14,54 @@ import { useParams } from 'react-router-dom';
 import { createTaskAction, deleteTaskAction } from './actions';
 import { useUsersGlobal } from '../../app/entities/user';
 
+export function useTasks({
+  userId,
+  search,
+  createdAtSort,
+}: {
+  userId: string;
+  search?: string;
+  createdAtSort: 'asc' | 'desc';
+}) {
+  const [paginatedTasksPromise, setTasksPromise] = useState(() =>
+    fetchTasks({ page: 0, filters: { userId }, sort: { createdAt: createdAtSort } }),
+  );
+
+  const refetchTasks =
+    async ({
+      page,
+      title = search,
+      createdAtSortNew = createdAtSort,
+    }: {
+      page?: number;
+      title?: string;
+      createdAtSortNew?: 'asc' | 'desc';
+    }) =>
+    async () => {
+      page = page ?? (await paginatedTasksPromise).page;
+      startTransition(() =>
+        setTasksPromise(
+          fetchTasks({ filters: { userId, title }, page, sort: { createdAt: createdAtSortNew } }),
+        ),
+      );
+    };
+
+  return { paginatedTasksPromise, refetchTasks };
+}
+
+
+
 export function TodoListPage() {
   const { userId = '' } = useParams();
   const [search, setSearch] = useState('');
 
   const [createdAtSort, setCreatedAtSort] = useState<'asc' | 'desc'>('asc');
+
+  const { paginatedTasksPromise, refetchTasks } = useTasks({
+    createdAtSort,
+    userId,
+    search,
+  });
 
   const getTasks = async ({
     page = 1,
@@ -30,16 +73,11 @@ export function TodoListPage() {
     createdAtSortNew?: 'asc' | 'desc';
   }) => fetchTasks({ filters: { userId, title }, page, sort: { createdAt: createdAtSortNew } });
 
-  const [paginatedTasksPromise, setTaskPromise] = useState(() => getTasks({}));
+  const onPageChange = async(newPage:number)=>{
+    refetchTasks({page:newPage})
+  }
 
-  const refetchTasks = async () => async () => {
-    const { page } = await paginatedTasksPromise;
-    startTransition(() => setTaskPromise(getTasks({ page })));
-  };
 
-  const onPageChange = (newPage: number) => {
-    setTaskPromise(getTasks({ page: newPage }));
-  };
 
   const tasksPromise = useMemo(
     () => paginatedTasksPromise.then((r) => r.data),
@@ -54,6 +92,7 @@ export function TodoListPage() {
     if (intervalRef.current) {
       clearTimeout(intervalRef.current);
     }
+
     intervalRef.current = setTimeout(() => {
       startTransition(() => {
         setTaskPromise(getTasks({ title: e.target.value }));
@@ -67,7 +106,7 @@ export function TodoListPage() {
       setTaskPromise(getTasks({ createdAtSortNew: e.target.value as 'asc' }));
     });
   };
-
+  }
   return (
     <main className="container mx-auto p-4 pt-10 flex flex-col gap-4">
       <h1 className="text-3xl font-bold underline">Tasks:</h1>
