@@ -46,7 +46,7 @@ export function CreateUserForm({ createUserAction }: { createUserAction: CreateU
       }}>
       <input
         name="email"
-        type="email"
+        type="text"
         className="border p-2 rounded"
         defaultValue={optimisticState.email}
       />

@@ -1,117 +1,42 @@
-import {
-  startTransition,
-  Suspense,
-  use,
-  useActionState,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from 'react';
+import { Suspense, use, useActionState, useMemo, useTransition } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { fetchTasks, PaginatedResponse, Task } from '../../shared/api';
+import { PaginatedResponse, Task } from '../../shared/api';
 import { useParams } from 'react-router-dom';
 import { createTaskAction, deleteTaskAction } from './actions';
-import { useUsersGlobal } from '../../app/entities/user';
-
-export function useTasks({
-  userId,
-  search,
-  createdAtSort,
-}: {
-  userId: string;
-  search?: string;
-  createdAtSort: 'asc' | 'desc';
-}) {
-  const [paginatedTasksPromise, setTasksPromise] = useState(() =>
-    fetchTasks({ page: 0, filters: { userId }, sort: { createdAt: createdAtSort } }),
-  );
-
-  const refetchTasks =
-    async ({
-      page,
-      title = search,
-      createdAtSortNew = createdAtSort,
-    }: {
-      page?: number;
-      title?: string;
-      createdAtSortNew?: 'asc' | 'desc';
-    }) =>
-    async () => {
-      page = page ?? (await paginatedTasksPromise).page;
-      startTransition(() =>
-        setTasksPromise(
-          fetchTasks({ filters: { userId, title }, page, sort: { createdAt: createdAtSortNew } }),
-        ),
-      );
-    };
-
-  return { paginatedTasksPromise, refetchTasks };
-}
-
-
+// import { useUsersGlobal } from '../../app/entities/user';
+import { useTasks } from './useTasks';
+import { useSearch } from './useSearch';
+import { useSort } from './useSort';
 
 export function TodoListPage() {
   const { userId = '' } = useParams();
-  const [search, setSearch] = useState('');
 
-  const [createdAtSort, setCreatedAtSort] = useState<'asc' | 'desc'>('asc');
-
-  const { paginatedTasksPromise, refetchTasks } = useTasks({
-    createdAtSort,
+  const { paginatedTasksPromise, refetchTasks, defaultCreatedAtSort, defaultSearch } = useTasks({
     userId,
-    search,
   });
 
-  const getTasks = async ({
-    page = 1,
-    title = search,
-    createdAtSortNew = createdAtSort,
-  }: {
-    page?: number;
-    title?: string;
-    createdAtSortNew?: 'asc' | 'desc';
-  }) => fetchTasks({ filters: { userId, title }, page, sort: { createdAt: createdAtSortNew } });
+  const { search, handleChangeSearch } = useSearch(defaultSearch, (title) =>
+    refetchTasks({ title }),
+  );
 
-  const onPageChange = async(newPage:number)=>{
-    refetchTasks({page:newPage})
-  }
+  const { sort, handleChangeSort } = useSort(defaultCreatedAtSort, (sort) =>
+    refetchTasks({ createdAtSortNew: sort as 'asc' | 'desc' }),
+  );
 
-
+  const onPageChange = async (newPage: number) => {
+    refetchTasks({ page: newPage });
+  };
 
   const tasksPromise = useMemo(
     () => paginatedTasksPromise.then((r) => r.data),
     [paginatedTasksPromise],
   );
 
-  const intervalRef = useRef(0);
-
-  const handleChangeSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-
-    if (intervalRef.current) {
-      clearTimeout(intervalRef.current);
-    }
-
-    intervalRef.current = setTimeout(() => {
-      startTransition(() => {
-        setTaskPromise(getTasks({ title: e.target.value }));
-      });
-    }, 1000);
-  };
-
-  const handleChangeSort = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCreatedAtSort(e.target.value as 'asc' | 'desc');
-    startTransition(() => {
-      setTaskPromise(getTasks({ createdAtSortNew: e.target.value as 'asc' }));
-    });
-  };
-  }
   return (
     <main className="container mx-auto p-4 pt-10 flex flex-col gap-4">
-      <h1 className="text-3xl font-bold underline">Tasks:</h1>
+      <h1 className="text-3xl font-bold underline">Задачи пользователя: {userId}</h1>
 
-      <CreateTaskForm refetchTasks={refetchTasks} userId={userId} />
+      <CreateTaskForm refetchTasks={() => refetchTasks({})} userId={userId} />
       <div className="flex gap-2">
         <input
           type="text"
@@ -120,7 +45,7 @@ export function TodoListPage() {
           value={search}
           onChange={handleChangeSearch}
         />
-        <select className="border p-2 rounded" value={createdAtSort} onChange={handleChangeSort}>
+        <select className="border p-2 rounded" value={sort} onChange={handleChangeSort}>
           <option value="asc">Asc</option>
           <option value="desc">Desc</option>
         </select>
@@ -131,7 +56,7 @@ export function TodoListPage() {
           <div className="text-red-500">Something went wrong: {JSON.stringify(e)}</div>
         )}>
         <Suspense fallback={<div>Loading....</div>}>
-          <TasksList tasksPromise={tasksPromise} refetchTasks={refetchTasks} />
+          <TasksList tasksPromise={tasksPromise} refetchTasks={() => refetchTasks({})} />
           <Pagination tasksPaginated={paginatedTasksPromise} onPageChange={onPageChange} />
         </Suspense>
       </ErrorBoundary>
@@ -139,11 +64,11 @@ export function TodoListPage() {
   );
 }
 
-function UserPreview({ userId }: { userId: string }) {
-  const { usersPromise } = useUsersGlobal();
-  const users = use(usersPromise);
-  return <span>{users.find((u) => u.id === userId)?.email}</span>;
-}
+// function UserPreview({ userId }: { userId: string }) {
+//   const { usersPromise } = useUsersGlobal();
+//   const users = use(usersPromise);
+//   return <span>{users.find((u) => u.id === userId)?.email}</span>;
+// }
 
 function Pagination<T>({
   tasksPaginated,
@@ -240,11 +165,12 @@ export function TaskCart({ task, refetchTasks }: { task: Task; refetchTasks: () 
   );
   return (
     <div className="border p-2 m-2 rounded bg-gray-100 flex gap-2">
-      {task.title} -
+      {task.title}
       <Suspense fallback={<div>Loading...</div>}>
-        <UserPreview userId={task.userId} />
+        {/* <UserPreview userId={task.userId} /> */}
       </Suspense>
       <form className="ml-auto" action={handleDelete}>
+        <input type="hidden" name="id" value={task.id}></input>
         <button
           disabled={isPending}
           className="bg-red-500 hover:bd-red-700 text-white font-bold py-2 px-4 rounded ml-auto disabled:bg-gray-400 cursor-pointer">

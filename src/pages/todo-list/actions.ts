@@ -53,6 +53,7 @@ export type DeleteTaskAction = (
 export function deleteTaskAction({ refetchTasks }: { refetchTasks: () => void }): DeleteTaskAction {
   return async (_, formData) => {
     const id = formData.get('id') as string;
+
     try {
       await deleteTask(id);
       refetchTasks();
